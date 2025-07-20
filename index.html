@@ -1,826 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Industrial Red-Triggered Analyzer</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-      /* Base animations */
-      @keyframes slide-in-right {
-        from {
-          transform: translateX(100%);
-          opacity: 0;
-        }
-        to {
-          transform: translateX(0);
-          opacity: 1;
-        }
-      }
-      .animate-slide-in-right {
-        animation: slide-in-right 0.4s ease-out;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <title>Industrial Red-Triggered Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    @keyframes slide-in-right {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .animate-slide-in-right {
+      animation: slide-in-right 0.4s ease-out;
+    }
 
-      /* Canvas overlay for drawing detections */
-      #canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        opacity: 0; /* Initially transparent, only visible when detections are drawn */
-        transition: opacity 0.3s ease-in-out; /* Smooth transition for showing/hiding */
-      }
+    @keyframes pulse-scan {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5); }
+      50% { box-shadow: 0 0 25px 25px rgba(255, 0, 0, 0); }
+    }
+    .animate-pulse-scan {
+      animation: pulse-scan 2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-4 font-mono">
 
-      /* Custom scrollbar for history list */
-      #history-list::-webkit-scrollbar {
-        width: 8px;
-      }
-      #history-list::-webkit-scrollbar-track {
-        background: #374151; /* bg-gray-700 */
-        border-radius: 4px;
-      }
-      #history-list::-webkit-scrollbar-thumb {
-        background: #60a5fa; /* bg-blue-400 */
-        border-radius: 4px;
-      }
-      #history-list::-webkit-scrollbar-thumb:hover {
-        background: #3b82f6; /* bg-blue-500 */
-      }
+  <!-- Toasts -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-      /* Progress bar for confidence */
-      .confidence-bar-container {
-        width: 100%;
-        background-color: #4b5563; /* gray-600 */
-        border-radius: 9999px; /* full rounded */
-        height: 1.5rem; /* h-6 */
-        overflow: hidden;
-      }
-      .confidence-bar {
-        height: 100%;
-        width: 0%; /* Initial width */
-        background-color: #22c55e; /* green-500 */
-        border-radius: 9999px;
-        transition: width 0.3s ease-in-out;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        color: white;
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-      }
-    </style>
-  </head>
-  <body class="bg-gray-900 text-white min-h-screen p-6 font-sans">
-    <div id="toast-container" class="fixed top-6 right-6 z-50 space-y-3"></div>
+  <header class="text-center mb-6 animate-fade-in">
+    <h1 class="text-4xl font-extrabold text-red-500 tracking-wide animate-bounce">Industrial Red-Triggered Analyzer</h1>
+    <p class="text-gray-400 mt-1 text-sm italic">Powered by AI - Detecting Banana Ripeness in Real-time</p>
+  </header>
 
-    <header class="text-center mb-8 border-b border-gray-700 pb-6">
-      <h1 class="text-4xl font-extrabold text-yellow-500 mb-2">
-        Industrial Red-Triggered Analyzer
-      </h1>
-      <p class="text-gray-400 text-lg">
-        Automated Ripeness Detection for Production Environments by TP53 Group
-      </p>
-    </header>
+  <main class="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto items-start">
 
-    <main
-      class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto items-start"
-    >
-      <section class="lg:col-span-2 w-full">
-        <div
-          class="bg-gray-800 p-4 rounded-lg shadow-xl border border-blue-600 h-full flex flex-col"
-        >
-          <h2
-            class="text-2xl font-semibold text-blue-400 mb-4 pb-2 border-b border-gray-700"
-          >
-            Live Camera Feed
-          </h2>
-          <div
-            class="relative aspect-video border-4 border-yellow-500 rounded-lg overflow-hidden w-full bg-gray-900 flex-grow"
-          >
-            <video
-              id="video"
-              autoplay
-              playsinline
-              class="absolute w-full h-full object-cover"
-            ></video>
-            <canvas id="canvas" class="absolute w-full h-full"></canvas>
-          </div>
-          <div class="flex flex-wrap gap-4 mt-4 justify-center sm:justify-start">
-            <button
-              id="switch-camera-btn"
-              class="flex-1 min-w-[150px] bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-md font-medium text-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
-            >
-              <span class="mr-2">🔄</span> Switch Camera
-            </button>
-            <button
-              id="toggle-flash-btn"
-              class="flex-1 min-w-[150px] bg-yellow-600 hover:bg-yellow-700 text-white px-5 py-3 rounded-md font-medium text-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md hidden"
-            >
-              <span class="mr-2">🔦</span> Toggle Flashlight
-            </button>
-          </div>
-        </div>
+    <!-- Camera Section -->
+    <div class="w-full max-w-[640px] space-y-4">
+      <div class="relative aspect-video border-4 border-red-600 rounded-lg overflow-hidden w-full animate-pulse-scan">
+        <video id="video" autoplay playsinline class="absolute w-full h-full object-cover rounded-lg"></video>
+        <canvas id="canvas" class="absolute w-full h-full hidden"></canvas>
+      </div>
+      <button id="switch-camera-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow w-full sm:w-auto">🔄 Switch Camera</button>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="w-full lg:w-[320px] space-y-6">
+
+      <!-- Predictions -->
+      <section class="bg-gray-800 p-4 rounded border border-red-400 shadow-lg">
+        <h2 class="text-xl font-semibold text-red-400 mb-2">🧠 Predictions</h2>
+        <ul id="prediction-list" class="space-y-2 text-sm"></ul>
       </section>
 
-      <aside class="lg:col-span-1 w-full space-y-6">
-        <section
-          class="bg-gray-800 p-4 rounded-lg shadow-xl border border-green-600"
-        >
-          <h2
-            class="text-2xl font-semibold text-green-400 mb-4 pb-2 border-b border-gray-700"
-          >
-            📊 Live Feedback
-          </h2>
-          <div
-            id="status-display"
-            class="text-lg font-bold text-center py-4 rounded-md text-gray-300"
-          >
-            Waiting for red object...
-          </div>
-          <div id="confidence-meter" class="mt-4">
-            <p class="text-sm text-gray-400 mb-2">Primary Detection Confidence:</p>
-            <div class="confidence-bar-container">
-              <div id="confidence-bar-fill" class="confidence-bar">0%</div>
-            </div>
-          </div>
-          <ul id="prediction-list" class="space-y-2 text-sm mt-4"></ul>
-        </section>
+      <!-- History -->
+      <section class="bg-gray-800 p-4 rounded border border-green-500 max-h-[250px] overflow-y-auto shadow-inner">
+        <h2 class="text-xl font-semibold text-green-400 mb-2">📜 Detection History</h2>
+        <ul id="history-list" class="space-y-2 text-xs"></ul>
+      </section>
+    </div>
+  </main>
 
-        <section
-          class="bg-gray-800 p-4 rounded-lg shadow-xl border border-purple-600 max-h-[300px] overflow-y-auto"
-        >
-          <h2
-            class="text-2xl font-semibold text-purple-400 mb-4 pb-2 border-b border-gray-700"
-          >
-            📜 Detection Log
-          </h2>
-          <ul id="history-list" class="space-y-2 text-xs">
-            <li class="text-gray-400 italic">No detections yet.</li>
-          </ul>
-        </section>
+  <script>
+    let currentCamera = 'environment';
+    let stream = null;
+    let track = null;
+    let detectionInProgress = false;
+    let latestImageBlob = null;
 
-        <section
-          class="bg-gray-800 p-4 rounded-lg shadow-xl border border-orange-600"
-        >
-          <h2
-            class="text-2xl font-semibold text-orange-400 mb-4 pb-2 border-b border-gray-700"
-          >
-            ⚙️ System Controls
-          </h2>
-          <div class="flex flex-col sm:flex-row gap-4">
-            <button
-              id="download-btn"
-              class="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-3 px-5 rounded-md font-medium text-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
-            >
-              <span class="mr-2">⬇️</span> Download Report
-            </button>
-            <button
-              id="reset-btn"
-              class="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-5 rounded-md font-medium text-lg transition duration-200 ease-in-out transform hover:scale-105 shadow-md"
-            >
-              <span class="mr-2">🗑️</span> Reset System
-            </button>
-          </div>
-        </section>
-      </aside>
-    </main>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
 
-    <script>
-      let currentCamera = "environment";
-      let stream = null;
-      let track = null;
-      let torchOn = false;
+    const switchBtn = document.getElementById("switch-camera-btn");
+    const toastContainer = document.getElementById("toast-container");
+    const predictionList = document.getElementById("prediction-list");
+    const historyList = document.getElementById("history-list");
 
-      let latestImageBlob = null;
-      let animationFrameId = null; // Used for requestAnimationFrame
-      let isProcessingRoboflow = false; // Flag to prevent concurrent API calls
-      let lastRoboflowCallTimestamp = 0; // To enforce a cooldown between successful API calls
+    const VALID_CLASSES = ['freshripe', 'freshunripe', 'overripe', 'ripe', 'rotten', 'unripe'];
 
-      // --- Configuration for Color Detection & Roboflow Cooldown ---
-      const ROBOFLOW_API_KEY = "Ur7hXZ8pVPs9vpScKv7w"; // <<< IMPORTANT: YOUR ROBOFLOW API KEY HERE
-      const ROBOFLOW_MODEL_URL = "https://serverless.roboflow.com/fruit-ripening-process/2";
+    // Start Camera
+    async function startCamera(facingMode = 'environment') {
+      if (stream) stream.getTracks().forEach(t => t.stop());
 
-      const CAPTURE_COOLDOWN_MS = 3000; // Minimum time between *successful* Roboflow API calls (in milliseconds)
-      const CANVAS_DISPLAY_DURATION_MS = 3000; // How long detection boxes remain visible on canvas
-      const RED_PIXEL_THRESHOLD_PERCENT = 0.05; // If 0.05% or more pixels are red, trigger capture & analysis
-
-      // Define what constitutes "red" in RGB. Adjust these values for your specific industrial objects!
-      // These thresholds are critical for accurate "red" detection. Fine-tune them in your
-      // specific factory lighting conditions. For example, if your red objects are very
-      // dark red, you might lower `minR`. If your environment has a lot of orange light,
-      // you might lower `maxG` and `maxB` further.
-      const RED_COLOR_THRESHOLDS = {
-        minR: 150, // Minimum Red value (0-255). Lower if objects are dark red.
-        maxG: 90, // Maximum Green value (0-255). Lower to exclude oranges/yellows.
-        maxB: 90, // Maximum Blue value (0-255). Lower to exclude purples/pinks.
-        redDominanceFactor: 1.8, // Red must be this many times stronger than Green AND Blue
-      };
-      // --- End Configuration ---
-
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
-
-      const switchBtn = document.getElementById("switch-camera-btn");
-      const flashBtn = document.getElementById("toggle-flash-btn");
-      const toastContainer = document.getElementById("toast-container");
-
-      const statusDisplay = document.getElementById("status-display"); // New element for main status
-      const predictionList = document.getElementById("prediction-list");
-      const historyList = document.getElementById("history-list");
-      const downloadBtn = document.getElementById("download-btn");
-      const resetBtn = document.getElementById("reset-btn");
-      const confidenceBarFill = document.getElementById("confidence-bar-fill");
-
-      // Start Camera Stream
-      async function startCamera(facingMode = "environment") {
-        if (stream) stream.getTracks().forEach((t) => t.stop()); // Stop existing stream
-        flashBtn.classList.add("hidden"); // Hide flash button by default
-        torchOn = false; // Reset torch state
-
-        statusDisplay.className =
-          "text-lg font-bold text-center py-4 rounded-md text-gray-300 bg-gray-700";
-        statusDisplay.textContent = "Initializing camera feed... 🔄";
-        predictionList.innerHTML =
-          '<li class="text-gray-400">Please allow camera access.</li>';
-
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, // Request full HD for better detection
-            audio: false,
-          });
-
-          video.srcObject = stream;
-          track = stream.getVideoTracks()[0];
-
-          // Set canvas dimensions to match video stream once metadata is loaded
-          video.onloadedmetadata = () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            showAlerts({
-              class: "System",
-              message: "Camera stream started successfully. ✅",
-            });
-            // Immediately start the animation loop once metadata is ready
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            animationFrameId = requestAnimationFrame(animateCameraFeed);
-          };
-
-          // Check for torch capability and show button if available
-          const caps = track.getCapabilities();
-          if (facingMode === "environment" && caps.torch) {
-            flashBtn.classList.remove("hidden");
-          }
-        } catch (err) {
-          showAlerts({
-            class: "Error",
-            message: `Camera error: ${err.message}. Please allow camera access and ensure a camera is connected.`,
-          });
-          console.error("Camera error: ", err);
-          statusDisplay.className =
-            "text-lg font-bold text-center py-4 rounded-md text-red-400 bg-red-900/30 border border-red-700";
-          statusDisplay.textContent =
-            "❗ Camera Error: Check Permissions & Connection";
-          predictionList.innerHTML =
-            '<li class="text-red-400">Camera access denied or unavailable.</li>';
-        }
-      }
-
-      // Toggle Flashlight (Torch)
-      async function toggleFlashlight() {
-        if (!track || !track.getCapabilities().torch) {
-          showAlerts({
-            class: "Info",
-            message: "Flashlight not supported or available on this camera. 💡",
-          });
-          return;
-        }
-        try {
-          torchOn = !torchOn;
-          await track.applyConstraints({ advanced: [{ torch: torchOn }] });
-          showAlerts({ class: "Info", message: `Flashlight ${torchOn ? "ON 💡" : "OFF 🌑"}` });
-        } catch (err) {
-          showAlerts({ class: "Error", message: "Failed to toggle flashlight. ❌" });
-          console.error("Flashlight error: ", err);
-        }
-      }
-
-      // --- Core Color Detection Logic ---
-      function isRedColorDetected(context, videoElement) {
-        if (!videoElement.videoWidth || !videoElement.videoHeight) {
-          return false; // Video not yet ready
-        }
-
-        // Draw the current video frame onto the hidden canvas for pixel analysis
-        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-        try {
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const pixels = imageData.data; // Array of R, G, B, A values
-
-          let redPixelCount = 0;
-          // Sample every `step` pixel to balance performance and accuracy.
-          // A step of 4 means we process 1/16th of the pixels, good for performance.
-          const step = 4;
-          const totalSampledPixels = (canvas.width / step) * (canvas.height / step);
-
-          for (let i = 0; i < pixels.length; i += 4 * step) {
-            const r = pixels[i];
-            const g = pixels[i + 1];
-            const b = pixels[i + 2];
-
-            // Check if the pixel meets the "red" criteria:
-            // 1. Red component must be above a minimum threshold.
-            // 2. Green and Blue components must be below a maximum threshold.
-            // 3. Red component must be significantly higher than Green and Blue (dominance factor).
-            if (
-              r >= RED_COLOR_THRESHOLDS.minR &&
-              g <= RED_COLOR_THRESHOLDS.maxG &&
-              b <= RED_COLOR_THRESHOLDS.maxB &&
-              r > g * RED_COLOR_THRESHOLDS.redDominanceFactor &&
-              r > b * RED_COLOR_THRESHOLDS.redDominanceFactor
-            ) {
-              redPixelCount++;
-            }
-          }
-
-          const percentageRed = (redPixelCount / totalSampledPixels) * 100;
-          // Uncomment for detailed red detection debugging:
-          // console.log(`Red percentage: ${percentageRed.toFixed(2)}%`);
-
-          return percentageRed >= RED_PIXEL_THRESHOLD_PERCENT;
-        } catch (e) {
-          console.error("Error accessing image data for color detection:", e);
-          showAlerts({
-            class: "Error",
-            message: "Pixel analysis failed. Check console. ❌",
-          });
-          return false;
-        }
-      }
-      // --- End Color Detection Logic ---
-
-      // --- Main Live Camera Feed & Auto-Detection Loop ---
-      async function animateCameraFeed() {
-        if (!video.srcObject || video.paused || video.ended) {
-          statusDisplay.className =
-            "text-lg font-bold text-center py-4 rounded-md text-red-400 bg-red-900/30 border border-red-700";
-          statusDisplay.textContent =
-            "❗ Camera disconnected. Please refresh or check connection.";
-          return; // Stop loop if no stream
-        }
-
-        // Always draw the current video frame onto the canvas for the live view
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const redDetected = isRedColorDetected(ctx, video);
-        const currentTime = Date.now();
-
-        // Condition to trigger Roboflow AI analysis:
-        // 1. Significant red color must be detected by our custom logic.
-        // 2. No Roboflow processing should be currently active (prevent concurrent calls).
-        // 3. The cooldown period since the last *successful* AI call must have passed.
-        if (
-          redDetected &&
-          !isProcessingRoboflow &&
-          currentTime - lastRoboflowCallTimestamp > CAPTURE_COOLDOWN_MS
-        ) {
-          isProcessingRoboflow = true; // Set flag to prevent new calls
-          // lastRoboflowCallTimestamp updated *after* successful AI call
-          // to ensure cooldown applies only to successful detections.
-
-          statusDisplay.className =
-            "text-lg font-bold text-center py-4 rounded-md text-orange-300 bg-orange-900/30 border border-orange-700";
-          statusDisplay.textContent = "🔴 Red Detected! Analyzing with AI... 🤖";
-          predictionList.innerHTML =
-            '<li class="text-yellow-300">Sending frame to AI for analysis...</li>';
-          updateConfidenceMeter(0); // Reset confidence meter
-          showAlerts({
-            class: "Red Detected",
-            message: "🔴 Significant red detected! Capturing frame for AI.",
-          });
-
-          // Capture the current frame as a JPEG blob
-          const blob = await new Promise((res) =>
-            canvas.toBlob(res, "image/jpeg", 0.9)
-          );
-          latestImageBlob = blob; // Store this blob for potential download
-
-          // Convert the image blob to a base64 string for the Roboflow API
-          const reader = new FileReader();
-          reader.onloadend = async () => {
-            const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, "");
-
-            // If flashlight was on during capture, turn it off now to save battery/reduce heat
-            if (torchOn) {
-              try {
-                await track.applyConstraints({ advanced: [{ torch: false }] });
-                torchOn = false;
-              } catch (flashErr) {
-                console.warn("Could not turn off flashlight:", flashErr);
-              }
-            }
-
-            try {
-              // Make the POST request to the Roboflow serverless API
-              const res = await fetch(
-                `${ROBOFLOW_MODEL_URL}?api_key=${ROBOFLOW_API_KEY}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                  body: base64Image,
-                }
-              );
-
-              if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(
-                  `Roboflow API HTTP error! Status: ${res.status}, Message: ${errorText}`
-                );
-              }
-
-              const data = await res.json();
-              lastRoboflowCallTimestamp = Date.now(); // Update timestamp only on successful API call
-
-              // Process and display the detection results from Roboflow
-              if (data.predictions && data.predictions.length > 0) {
-                // Redraw the original video frame first, then draw bounding boxes on top
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                drawPredictions(data.predictions); // Draw bounding boxes on canvas
-                updatePredictionList(data.predictions); // Update sidebar list
-                updateHistory(data.predictions); // Add to history log
-                speakDetections(data.predictions); // Announce detections
-                updateConfidenceMeter(data.predictions[0].confidence); // Update with highest confidence
-                statusDisplay.className =
-                  "text-lg font-bold text-center py-4 rounded-md text-green-400 bg-green-900/30 border border-green-700";
-                statusDisplay.textContent = `✅ Object Detected: ${data.predictions[0].class.toUpperCase()}`; // Main status
-                showAlerts({
-                  class: "Detection Result",
-                  message: `✅ Detected: ${data.predictions
-                    .map((p) => p.class)
-                    .join(", ")}. Confidence: ${(
-                    data.predictions[0].confidence * 100
-                  ).toFixed(0)}%`,
-                });
-
-                // Temporarily show the canvas with the drawn predictions
-                canvas.style.opacity = "1";
-                setTimeout(() => {
-                  canvas.style.opacity = "0"; // Make canvas transparent again after a delay
-                }, CANVAS_DISPLAY_DURATION_MS); // Show detections for configurable duration
-              } else {
-                // If no objects were detected by Roboflow, even if red was detected
-                statusDisplay.className =
-                  "text-lg font-bold text-center py-4 rounded-md text-gray-300 bg-gray-700";
-                statusDisplay.textContent = "🔍 No specific objects detected by AI.";
-                predictionList.innerHTML =
-                  '<li class="text-gray-400">No objects matched by the AI model.</li>';
-                updateConfidenceMeter(0); // Reset confidence meter
-                showAlerts({
-                  class: "No Objects",
-                  message: "No expected objects detected by the AI model. ⚪",
-                });
-                canvas.style.opacity = "0"; // Ensure canvas is transparent
-              }
-            } catch (apiErr) {
-              // Handle API errors (network issues, incorrect key, etc.)
-              console.error("Roboflow API error:", apiErr);
-              statusDisplay.className =
-                "text-lg font-bold text-center py-4 rounded-md text-red-400 bg-red-900/30 border border-red-700";
-              statusDisplay.textContent = "❗ API Error: Check Console & Network";
-              showAlerts({
-                class: "Error",
-                message:
-                  "Roboflow API error or network issue. See console for details. ❌",
-              });
-              predictionList.innerHTML =
-                '<li class="text-red-400">API Error. Please check your API key and internet connection.</li>';
-              updateConfidenceMeter(0); // Reset confidence meter
-              canvas.style.opacity = "0";
-            } finally {
-              isProcessingRoboflow = false; // Allow new API calls after current processing completes
-            }
-          };
-          reader.readAsDataURL(blob); // Start the file reading process
-        } else if (!redDetected && !isProcessingRoboflow) {
-          // If red is not detected and no processing is ongoing, reset status
-          statusDisplay.className =
-            "text-lg font-bold text-center py-4 rounded-md text-gray-300 bg-gray-700";
-          statusDisplay.textContent = "Waiting for red object... ⏳";
-          predictionList.innerHTML =
-            '<li class="text-gray-400">Move a red object into view for analysis...</li>';
-          updateConfidenceMeter(0); // Reset confidence meter
-          canvas.style.opacity = "0"; // Ensure canvas is transparent for live video
-        }
-
-        // Continue the animation loop for the next frame
-        animationFrameId = requestAnimationFrame(animateCameraFeed);
-      }
-      // --- End Main Live Camera Feed & Auto-Detection Loop ---
-
-      // Event Listeners for UI Buttons
-      switchBtn.addEventListener("click", () => {
-        currentCamera = currentCamera === "user" ? "environment" : "user";
-        // Stop current animation loop before starting the new camera stream
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-          animationFrameId = null;
-        }
-        startCamera(currentCamera); // Restart camera with new facing mode
-        // Reset flags and UI state for a fresh start
-        isProcessingRoboflow = false;
-        lastRoboflowCallTimestamp = 0;
-        statusDisplay.className =
-          "text-lg font-bold text-center py-4 rounded-md text-gray-300 bg-gray-700";
-        statusDisplay.textContent = "Switching camera...🔃";
-        predictionList.innerHTML = '<li class="text-gray-400">Please wait...</li>';
-        updateConfidenceMeter(0);
-      });
-
-      flashBtn.addEventListener("click", toggleFlashlight);
-
-      // Function to draw bounding box predictions on the canvas
-      function drawPredictions(preds) {
-        // Clear previous drawings on the canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        preds.forEach((pred) => {
-          const { x, y, width, height, class: label, confidence } = pred;
-          // Set color for bounding box and text
-          ctx.strokeStyle = "#4ADE80"; // A vibrant green (tailwind's emerald-400)
-          ctx.lineWidth = 3; // Thicker line for industrial clarity
-          ctx.font = "bold 24px Arial"; // Larger, bold font for readability
-          ctx.fillStyle = "#4ADE80";
-
-          // Calculate scaled coordinates for drawing on canvas
-          // This accounts for object-fit: cover on the video element
-          const videoRatio = video.videoWidth / video.videoHeight;
-          const canvasRatio = canvas.width / canvas.height;
-          let drawWidth, drawHeight, offsetX, offsetY;
-
-          if (videoRatio > canvasRatio) {
-            // Video is wider than canvas (constrained by canvas height)
-            drawHeight = canvas.height;
-            drawWidth = canvas.height * videoRatio;
-            offsetX = (canvas.width - drawWidth) / 2;
-            offsetY = 0;
-          } else {
-            // Video is taller or equal aspect ratio to canvas (constrained by canvas width)
-            drawWidth = canvas.width;
-            drawHeight = canvas.width / videoRatio;
-            offsetX = 0;
-            offsetY = (canvas.height - drawHeight) / 2;
-          }
-
-          const scaleX = drawWidth / video.videoWidth;
-          const scaleY = drawHeight / video.videoHeight;
-
-          const rectX = (x - width / 2) * scaleX + offsetX;
-          const rectY = (y - height / 2) * scaleY + offsetY;
-          const rectWidth = width * scaleX;
-          const rectHeight = height * scaleY;
-
-          // Draw the rectangle (bounding box)
-          ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-
-          // Draw the text label
-          const text = `${label.toUpperCase()} (${(confidence * 100).toFixed(
-            0
-          )}%)`; // Confidence to nearest whole number
-          const textMeasure = ctx.measureText(text);
-          const textWidth = textMeasure.width;
-          const textHeight = parseInt(ctx.font, 10); // Get font size
-
-          // Background for text for better contrast
-          ctx.fillStyle = "#1F2937"; // Dark background (tailwind's gray-800) for text
-          ctx.fillRect(rectX, rectY - textHeight - 10, textWidth + 10, textHeight + 8);
-
-          ctx.fillStyle = "#4ADE80"; // Text color
-          ctx.fillText(text, rectX + 5, rectY - 12); // Adjust position
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: 640, height: 480 },
+          audio: false
         });
+
+        video.srcObject = stream;
+        track = stream.getVideoTracks()[0];
+
+        canvas.classList.add("hidden");
+        video.classList.remove("hidden");
+
+      } catch (err) {
+        alert("Camera error: " + err.message);
       }
+    }
 
-      // Update UI for Live Predictions section
-      function updatePredictionList(preds) {
-        predictionList.innerHTML = ""; // Clear previous entries
-        if (preds.length === 0) {
-          predictionList.innerHTML =
-            '<li class="text-gray-400">No specific objects recognized by AI.</li>';
-          return;
-        }
-        preds.forEach((pred) => {
-          const li = document.createElement("li");
-          li.className =
-            "bg-gray-700 px-3 py-2 rounded border-l-4 border-yellow-500 text-gray-200 flex justify-between items-center";
-          li.innerHTML = `<span>${pred.class.toUpperCase()}</span> <span class="font-bold text-yellow-300">${(
-            pred.confidence * 100
-          ).toFixed(1)}%</span>`;
-          predictionList.appendChild(li);
-        });
-      }
-
-      // Update the confidence meter
-      function updateConfidenceMeter(confidence) {
-        const percentage = (confidence * 100).toFixed(0);
-        confidenceBarFill.style.width = `${percentage}%`;
-        confidenceBarFill.textContent = `${percentage}%`;
-
-        // Change color based on confidence for industrial alerts
-        if (confidence >= 0.8) {
-          confidenceBarFill.style.backgroundColor = "#22c55e"; // green-500 (High Confidence - Ready)
-        } else if (confidence >= 0.5) {
-          confidenceBarFill.style.backgroundColor = "#eab308"; // yellow-500 (Medium Confidence - Review)
-        } else {
-          confidenceBarFill.style.backgroundColor = "#ef4444"; // red-500 (Low Confidence - Rework/Reject)
-        }
-      }
-
-      // Update UI for Detection Log/History
-      function updateHistory(preds) {
-        const time = new Date().toLocaleTimeString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        // Add a single history entry for the entire detection event
-        const historyText = preds
-          .map((p) => `${p.class.toUpperCase()} (${(p.confidence * 100).toFixed(1)}%)`)
-          .join(", ");
-
-        const li = document.createElement("li");
-        li.className =
-          "bg-gray-700 px-3 py-2 rounded border-l-4 border-purple-500 text-gray-300 text-sm";
-        li.textContent = `[${time}] Detected: ${historyText || "No objects"}`;
-
-        historyList.prepend(li); // Add to the beginning of the list
-        // Limit history to 100 entries to prevent performance issues over long runs
-        if (historyList.children.length > 100)
-          historyList.removeChild(historyList.lastChild);
-
-        // Remove initial placeholder if present
-        const placeholder = historyList.querySelector(".italic");
-        if (placeholder) placeholder.remove();
-      }
-
-      // Text-to-Speech Announcements
-      function speakDetections(preds) {
-        if (!("speechSynthesis" in window)) {
-          console.warn("Speech synthesis not supported in this browser.");
-          return;
-        }
-
-        if (speechSynthesis.speaking) {
-          speechSynthesis.cancel(); // Stop current speech before new one
-        }
-
-        const detectionSummary = preds
-          .map(
-            (pred) =>
-              `${pred.class} at ${Math.round(pred.confidence * 100)} percent confidence`
-          )
-          .join(" and ");
-
-        if (detectionSummary) {
-          const msg = new SpeechSynthesisUtterance(
-            `Object detected: ${detectionSummary}.`
-          );
-          msg.lang = "en-US"; // Set language for speech
-          // Adjust pitch and rate for clearer industrial alerts
-          msg.rate = 1.1; // Slightly faster
-          msg.pitch = 1.2; // Slightly higher pitch
-          speechSynthesis.speak(msg);
-        }
-      }
-
-      // Unified Alert/Toast Notification System
-      function showAlerts(alertData) {
-        // Expects {class: "Type", message: "Your message"}
-        const toast = document.createElement("div");
-        let toastBgClass = "bg-blue-600"; // Default info
-        let icon = "ℹ️";
-
-        switch (alertData.class) {
-          case "Error":
-            toastBgClass = "bg-red-600";
-            icon = "❌";
-            break;
-          case "Red Detected":
-            toastBgClass = "bg-orange-500";
-            icon = "🟠";
-            break;
-          case "Detection Result":
-            toastBgClass = "bg-green-600";
-            icon = "✅";
-            break;
-          case "No Objects":
-            toastBgClass = "bg-gray-600";
-            icon = "⚪";
-            break;
-          case "Success":
-            toastBgClass = "bg-emerald-600";
-            icon = "👍";
-            break;
-          case "Info":
-            toastBgClass = "bg-blue-600";
-            icon = "ℹ️";
-            break;
-          case "System":
-            toastBgClass = "bg-indigo-600";
-            icon = "⚙️";
-            break;
-          default:
-            toastBgClass = "bg-blue-600";
-            icon = "🔔";
-        }
-
-        toast.className = `${toastBgClass} text-white px-5 py-3 rounded-md shadow-lg animate-slide-in-right flex items-center space-x-2`;
-        toast.innerHTML = `<span class="text-xl">${icon}</span> <span>${alertData.message}</span>`;
-
-        toastContainer.appendChild(toast);
-        // Automatically remove toast after a delay
-        setTimeout(() => {
-          toast.classList.add("opacity-0"); // Fade out
-          setTimeout(() => toast.remove(), 500); // Remove from DOM after fade
-        }, 5000); // Display for 5 seconds for industrial alerts
-      }
-
-      // Download Image and History Log
-      downloadBtn.addEventListener("click", async () => {
-        if (!latestImageBlob) {
-          showAlerts({
-            class: "Info",
-            message: "No captured image available to download yet. Perform a detection first. 📸",
-          });
-          return;
-        }
-
-        const historyText = [...historyList.children].map((li) => li.textContent).join("\n");
-
-        const zip = new JSZip();
-        zip.file("detection-history.txt", historyText || "No detection history available.");
-        zip.file("captured-image.jpg", latestImageBlob);
-
-        try {
-          const zipBlob = await zip.generateAsync({ type: "blob" });
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(zipBlob);
-          a.download = `red-detector-report-${Date.now()}.zip`;
-          document.body.appendChild(a);
-          a.click(); // Programmatically click to trigger download
-          document.body.removeChild(a);
-          URL.revokeObjectURL(a.href); // Clean up the URL object
-          showAlerts({
-            class: "Success",
-            message: "Download initiated successfully! 🎉 Check your downloads folder.",
-          });
-        } catch (error) {
-          showAlerts({
-            class: "Error",
-            message: "Failed to generate download. Check console for details. ❌",
-          });
-          console.error("Download generation error:", error);
-        }
-      });
-
-      // Reset System
-      resetBtn.addEventListener("click", () => {
-        // Stop the current animation loop
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-          animationFrameId = null;
-        }
-
-        // Reset all relevant state variables
-        latestImageBlob = null;
-        isProcessingRoboflow = false;
-        lastRoboflowCallTimestamp = 0;
-
-        // Clear UI elements
-        predictionList.innerHTML =
-          '<li class="text-gray-400">Move a red object into view for analysis...</li>';
-        historyList.innerHTML = '<li class="text-gray-400 italic">No detections yet.</li>'; // Restore placeholder
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear any drawings on canvas
-        canvas.style.opacity = "0"; // Ensure canvas is transparent
-        updateConfidenceMeter(0); // Reset confidence meter
-        statusDisplay.className =
-          "text-lg font-bold text-center py-4 rounded-md text-gray-300 bg-gray-700";
-        statusDisplay.textContent = "System Reset. Restarting Camera...🔄";
-
-        // Restart camera stream to re-initialize everything
-        startCamera(currentCamera);
-        showAlerts({ class: "System", message: "System fully reset and camera restarted. 🔄" });
-      });
-
-      // Initialize camera on page load
+    // Switch Camera
+    switchBtn.addEventListener("click", () => {
+      currentCamera = currentCamera === "user" ? "environment" : "user";
       startCamera(currentCamera);
-    </script>
-    <br />
-    <footer class="text-center p-6 text-sm text-gray-500 border-t border-gray-700 mt-8">
-      <p>© 2025 TeamTP53. All rights reserved.</p>
-      <p>
-        This automated detection system is for industrial use only. Unauthorized
-        modification or distribution is prohibited.
-      </p>
-    </footer>
-  </body>
+    });
+
+    // Red Color Detection + Auto Capture
+    setInterval(() => {
+      if (detectionInProgress || !track) return;
+
+      const width = video.videoWidth;
+      const height = video.videoHeight;
+      if (width === 0 || height === 0) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(video, 0, 0, width, height);
+
+      const frame = ctx.getImageData(0, 0, width, height).data;
+      let redPixels = 0;
+      for (let i = 0; i < frame.length; i += 4) {
+        const r = frame[i], g = frame[i + 1], b = frame[i + 2];
+        if (r > 150 && g < 80 && b < 80) redPixels++;
+      }
+
+      const redRatio = redPixels / (width * height);
+      if (redRatio > 0.02) {
+        detectionInProgress = true;
+        captureAndDetect();
+      }
+
+    }, 1000);
+
+    // Auto Capture & Detect
+    async function captureAndDetect() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.classList.remove("hidden");
+      video.classList.add("hidden");
+
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg"));
+      latestImageBlob = blob;
+
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, '');
+
+        const res = await fetch("https://serverless.roboflow.com/fruit-ripening-process/2?api_key=Ur7hXZ8pVPs9vpScKv7w", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: base64Image
+        });
+
+        const data = await res.json();
+        drawPredictions(data.predictions);
+        updatePredictionList(data.predictions);
+        updateHistory(data.predictions);
+        speakDetections(data.predictions);
+        showAlerts(data.predictions);
+
+        const relevant = data.predictions.filter(pred => VALID_CLASSES.includes(pred.class));
+        if (relevant.length > 0) downloadResults(relevant);
+
+        setTimeout(() => {
+          detectionInProgress = false;
+          startCamera(currentCamera);
+        }, 3000);
+      };
+
+      reader.readAsDataURL(blob);
+    }
+
+    // Draw Prediction Boxes
+    function drawPredictions(preds) {
+      preds.forEach(pred => {
+        const { x, y, width, height, class: label, confidence } = pred;
+        ctx.strokeStyle = "#00FF00";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+        ctx.fillStyle = "#00FF00";
+        ctx.font = "16px Arial";
+        ctx.fillText(`${label} (${(confidence * 100).toFixed(1)}%)`, x - width / 2, y - height / 2 - 8);
+      });
+    }
+
+    function updatePredictionList(preds) {
+      predictionList.innerHTML = '';
+      preds.forEach(pred => {
+        const li = document.createElement("li");
+        li.className = "bg-gray-700 px-3 py-1 rounded border-l-4 border-red-400 animate-slide-in-right";
+        li.textContent = `${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
+        predictionList.appendChild(li);
+      });
+    }
+
+    function updateHistory(preds) {
+      const time = new Date().toLocaleTimeString();
+      preds.forEach(pred => {
+        const li = document.createElement("li");
+        li.className = "bg-gray-700 px-3 py-1 rounded border-l-4 border-green-500";
+        li.textContent = `[${time}] ${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
+        historyList.prepend(li);
+        if (historyList.children.length > 50) historyList.removeChild(historyList.lastChild);
+      });
+    }
+
+    function speakDetections(preds) {
+      preds.forEach(pred => {
+        const msg = new SpeechSynthesisUtterance(`${pred.class} detected, ${(pred.confidence * 100).toFixed(0)} percent`);
+        msg.lang = "en-US";
+        speechSynthesis.speak(msg);
+      });
+    }
+
+    function showAlerts(preds) {
+      preds.forEach(pred => {
+        const toast = document.createElement("div");
+        toast.className = "bg-blue-700 text-white px-4 py-2 rounded shadow-lg animate-slide-in-right";
+        toast.textContent = `🔔 ${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+          toast.classList.add("opacity-0");
+          setTimeout(() => toast.remove(), 500);
+        }, 3000);
+      });
+    }
+
+    async function downloadResults(preds) {
+      const historyText = preds.map(pred =>
+        `${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`
+      ).join("\n");
+
+      const zip = new JSZip();
+      zip.file("detection-result.txt", historyText);
+      zip.file("captured-image.jpg", latestImageBlob);
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = `detection-${Date.now()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    }
+
+    // Start camera on load
+    startCamera(currentCamera);
+  </script>
+</body>
 </html>
