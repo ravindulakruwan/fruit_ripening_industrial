@@ -2,87 +2,247 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Industrial Red-Triggered Analyzer</title>
+  <title>Industrial Banana Inspector</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @keyframes slide-in-right {
       from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
+      to   { transform: translateX(0);   opacity: 1; }
     }
     .animate-slide-in-right {
       animation: slide-in-right 0.4s ease-out;
     }
-
-    @keyframes pulse-scan {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.5); }
-      50% { box-shadow: 0 0 25px 25px rgba(255, 0, 0, 0); }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
     }
-    .animate-pulse-scan {
-      animation: pulse-scan 2s infinite;
+    
+    @keyframes conveyor {
+      0% { background-position: 0 0; }
+      100% { background-position: 50px 0; }
+    }
+    
+    @keyframes scanner {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(100%); }
+    }
+    
+    .pulse-active {
+      animation: pulse 2s infinite;
+    }
+    
+    .conveyor-bg {
+      background-image: linear-gradient(90deg, #2d3748 0px, #2d3748 25px, #4a5568 25px, #4a5568 50px);
+      background-size: 50px 100%;
+      animation: conveyor 2s linear infinite;
+    }
+    
+    .scanner-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, rgba(0, 255, 0, 0) 0%, rgba(0, 255, 0, 0.1) 50%, rgba(0, 255, 0, 0) 100%);
+      animation: scanner 1.5s linear infinite;
+    }
+    
+    .industrial-border {
+      border: 2px solid #4a5568;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .industrial-border::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #e53e3e, #dd6b20, #38a169, #319795, #00b5d8, #3182ce, #805ad5);
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-active {
+      box-shadow: 0 0 10px #38a169;
+      background-color: #38a169;
+    }
+    
+    .status-inactive {
+      background-color: #e53e3e;
     }
   </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            industrial: {
+              dark: '#1a202c',
+              medium: '#2d3748',
+              light: '#4a5568',
+              accent: '#dd6b20',
+              success: '#38a169',
+              warning: '#dd6b20',
+              danger: '#e53e3e',
+              info: '#3182ce'
+            }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-4 font-mono">
+<body class="bg-industrial-dark text-gray-200 min-h-screen p-4">
 
   <!-- Toasts -->
   <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
-  <header class="text-center mb-6 animate-fade-in">
-    <h1 class="text-4xl font-extrabold text-red-500 tracking-wide animate-bounce">Industrial Red-Triggered Analyzer</h1>
-    <p class="text-gray-400 mt-1 text-sm italic">Powered by AI - Detecting Banana Ripeness in Real-time</p>
+  <header class="text-center mb-8">
+    <div class="industrial-border rounded-lg p-4 bg-gradient-to-r from-industrial-medium to-industrial-light">
+      <h1 class="text-3xl font-bold text-orange-400 flex items-center justify-center">
+        <i class="fas fa-industry mr-3"></i>
+        INDUSTRIAL BANANA RIPENESS INSPECTOR
+      </h1>
+      <p class="text-gray-400 mt-2 text-sm flex items-center justify-center">
+        <span class="status-indicator status-active"></span>
+        <span>Automatic Detection System - TP53 Group</span>
+      </p>
+    </div>
   </header>
 
   <main class="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto items-start">
 
     <!-- Camera Section -->
     <div class="w-full max-w-[640px] space-y-4">
-      <div class="relative aspect-video border-4 border-red-600 rounded-lg overflow-hidden w-full animate-pulse-scan">
-        <video id="video" autoplay playsinline class="absolute w-full h-full object-cover rounded-lg"></video>
-        <canvas id="canvas" class="absolute w-full h-full hidden"></canvas>
+      <div class="industrial-border rounded-lg overflow-hidden">
+        <div class="relative aspect-video bg-black rounded-lg overflow-hidden w-full conveyor-bg">
+          <video id="video" autoplay playsinline class="absolute w-full h-full object-cover"></video>
+          <canvas id="canvas" class="absolute w-full h-full hidden"></canvas>
+          <div id="scanner" class="scanner-overlay hidden"></div>
+          <div id="red-detection-overlay" class="absolute inset-0 bg-red-500 bg-opacity-20 hidden"></div>
+        </div>
+        <div class="bg-industrial-medium p-2 flex items-center">
+          <span class="status-indicator status-active mr-2"></span>
+          <span id="status-text" class="text-sm font-mono">SYSTEM READY</span>
+        </div>
       </div>
-      <button id="switch-camera-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow w-full sm:w-auto">🔄 Switch Camera</button>
+      
+      <div class="flex flex-wrap gap-3">
+        <button id="switch-camera-btn" class="bg-industrial-light hover:bg-industrial-accent text-white px-4 py-2 rounded w-full sm:w-auto transition-all">
+          <i class="fas fa-camera-retro mr-2"></i>SWITCH CAMERA
+        </button>
+        <button id="reset-btn" class="bg-industrial-danger hover:bg-red-700 text-white py-2 px-4 rounded w-full transition-all">
+          <i class="fas fa-redo mr-2"></i>RESET SYSTEM
+        </button>
+      </div>
     </div>
 
     <!-- Sidebar -->
-    <div class="w-full lg:w-[320px] space-y-6">
+    <div class="w-full lg:w-[380px] space-y-6">
+
+      <!-- System Status -->
+      <section class="industrial-border rounded-lg overflow-hidden">
+        <div class="bg-industrial-accent p-3 flex items-center">
+          <i class="fas fa-microchip mr-2"></i>
+          <h2 class="text-xl font-semibold">SYSTEM STATUS</h2>
+        </div>
+        <div class="bg-industrial-medium p-4">
+          <ul class="space-y-3 text-sm">
+            <li class="flex justify-between">
+              <span>Detection Mode:</span>
+              <span class="font-mono text-green-400">AUTO-RED DETECT</span>
+            </li>
+            <li class="flex justify-between">
+              <span>Camera:</span>
+              <span id="camera-type" class="font-mono">Rear (Environment)</span>
+            </li>
+            <li class="flex justify-between">
+              <span>Last Scan:</span>
+              <span id="last-scan" class="font-mono">--:--:--</span>
+            </li>
+            <li class="flex justify-between">
+              <span>Items Processed:</span>
+              <span id="items-count" class="font-mono">0</span>
+            </li>
+          </ul>
+        </div>
+      </section>
 
       <!-- Predictions -->
-      <section class="bg-gray-800 p-4 rounded border border-red-400 shadow-lg">
-        <h2 class="text-xl font-semibold text-red-400 mb-2">🧠 Predictions</h2>
-        <ul id="prediction-list" class="space-y-2 text-sm"></ul>
+      <section class="industrial-border rounded-lg overflow-hidden">
+        <div class="bg-industrial-info p-3 flex items-center">
+          <i class="fas fa-brain mr-2"></i>
+          <h2 class="text-xl font-semibold">DETECTION RESULTS</h2>
+        </div>
+        <div class="bg-industrial-medium p-4">
+          <ul id="prediction-list" class="space-y-2 text-sm"></ul>
+        </div>
       </section>
 
       <!-- History -->
-      <section class="bg-gray-800 p-4 rounded border border-green-500 max-h-[250px] overflow-y-auto shadow-inner">
-        <h2 class="text-xl font-semibold text-green-400 mb-2">📜 Detection History</h2>
-        <ul id="history-list" class="space-y-2 text-xs"></ul>
+      <section class="industrial-border rounded-lg overflow-hidden">
+        <div class="bg-industrial-success p-3 flex items-center">
+          <i class="fas fa-history mr-2"></i>
+          <h2 class="text-xl font-semibold">PRODUCTION HISTORY</h2>
+        </div>
+        <div class="bg-industrial-medium p-4 max-h-[250px] overflow-y-auto">
+          <ul id="history-list" class="space-y-2 text-xs"></ul>
+        </div>
       </section>
     </div>
   </main>
+
+  <footer class="mt-8 text-center text-gray-500 text-sm">
+    <p>Industrial Automation System - TP53 Group | Version 2.1</p>
+  </footer>
 
   <script>
     let currentCamera = 'environment';
     let stream = null;
     let track = null;
-    let detectionInProgress = false;
+    let itemsProcessed = 0;
+
     let latestImageBlob = null;
+    let isProcessing = false;
+    let cooldown = false;
 
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
+    const scanner = document.getElementById("scanner");
+    const redOverlay = document.getElementById("red-detection-overlay");
+    const statusText = document.getElementById("status-text");
+    const cameraType = document.getElementById("camera-type");
+    const lastScan = document.getElementById("last-scan");
+    const itemsCount = document.getElementById("items-count");
 
     const switchBtn = document.getElementById("switch-camera-btn");
     const toastContainer = document.getElementById("toast-container");
     const predictionList = document.getElementById("prediction-list");
     const historyList = document.getElementById("history-list");
-
-    const VALID_CLASSES = ['freshripe', 'freshunripe', 'overripe', 'ripe', 'rotten', 'unripe'];
+    const resetBtn = document.getElementById("reset-btn");
 
     // Start Camera
     async function startCamera(facingMode = 'environment') {
       if (stream) stream.getTracks().forEach(t => t.stop());
+      
+      statusText.textContent = "INITIALIZING CAMERA...";
+      cameraType.textContent = facingMode === 'environment' ? "Rear (Environment)" : "Front (User)";
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -95,9 +255,14 @@
 
         canvas.classList.add("hidden");
         video.classList.remove("hidden");
+        scanner.classList.add("hidden");
+        statusText.textContent = "READY - AWAITING RED OBJECT";
 
+        // Start red detection
+        setTimeout(detectRedPresence, 500);
       } catch (err) {
-        alert("Camera error: " + err.message);
+        statusText.textContent = "CAMERA ERROR";
+        showToast(`Camera error: ${err.message}`, "danger");
       }
     }
 
@@ -107,147 +272,300 @@
       startCamera(currentCamera);
     });
 
-    // Red Color Detection + Auto Capture
-    setInterval(() => {
-      if (detectionInProgress || !track) return;
+    // Detect red presence
+    function detectRedPresence() {
+      if (isProcessing || cooldown || !video.videoWidth || !video.videoHeight) {
+        setTimeout(detectRedPresence, 200);
+        return;
+      }
 
-      const width = video.videoWidth;
-      const height = video.videoHeight;
-      if (width === 0 || height === 0) return;
-
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(video, 0, 0, width, height);
-
-      const frame = ctx.getImageData(0, 0, width, height).data;
+      // Create offscreen canvas for analysis
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+      
+      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      const data = imageData.data;
+      
       let redPixels = 0;
-      for (let i = 0; i < frame.length; i += 4) {
-        const r = frame[i], g = frame[i + 1], b = frame[i + 2];
-        if (r > 150 && g < 80 && b < 80) redPixels++;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        // Detect red (high R, low G, low B)
+        if (r > 150 && g < 100 && b < 100) {
+          redPixels++;
+        }
       }
-
-      const redRatio = redPixels / (width * height);
-      if (redRatio > 0.02) {
-        detectionInProgress = true;
-        captureAndDetect();
-      }
-
-    }, 1000);
-
-    // Auto Capture & Detect
-    async function captureAndDetect() {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      canvas.classList.remove("hidden");
-      video.classList.add("hidden");
-
-      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg"));
-      latestImageBlob = blob;
-
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, '');
-
-        const res = await fetch("https://serverless.roboflow.com/fruit-ripening-process/2?api_key=Ur7hXZ8pVPs9vpScKv7w", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: base64Image
-        });
-
-        const data = await res.json();
-        drawPredictions(data.predictions);
-        updatePredictionList(data.predictions);
-        updateHistory(data.predictions);
-        speakDetections(data.predictions);
-        showAlerts(data.predictions);
-
-        const relevant = data.predictions.filter(pred => VALID_CLASSES.includes(pred.class));
-        if (relevant.length > 0) downloadResults(relevant);
-
+      
+      const redPercentage = (redPixels / (tempCanvas.width * tempCanvas.height)) * 100;
+      
+      if (redPercentage > 5) { // Minimum 5% of the frame must be red
+        redOverlay.classList.remove("hidden");
+        statusText.textContent = `RED OBJECT DETECTED (${Math.round(redPercentage)}%)`;
+        
+        // Trigger capture after short delay
         setTimeout(() => {
-          detectionInProgress = false;
-          startCamera(currentCamera);
-        }, 3000);
-      };
-
-      reader.readAsDataURL(blob);
+          if (redPercentage > 5) {
+            triggerCapture();
+          }
+        }, 300);
+      } else {
+        redOverlay.classList.add("hidden");
+        statusText.textContent = "READY - AWAITING RED OBJECT";
+      }
+      
+      setTimeout(detectRedPresence, 200);
     }
 
-    // Draw Prediction Boxes
+    // Trigger capture
+    function triggerCapture() {
+      if (isProcessing || cooldown) return;
+      
+      isProcessing = true;
+      cooldown = true;
+      redOverlay.classList.add("hidden");
+      scanner.classList.remove("hidden");
+      statusText.textContent = "PROCESSING...";
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      canvas.classList.remove("hidden");
+      video.classList.add("hidden");
+      
+      const captureTime = new Date();
+      lastScan.textContent = captureTime.toLocaleTimeString();
+      
+      // Get image data
+      canvas.toBlob(async (blob) => {
+        latestImageBlob = blob;
+        const reader = new FileReader();
+        
+        reader.onloadend = async () => {
+          const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, '');
+          
+          try {
+            const res = await fetch("https://serverless.roboflow.com/fruit-ripening-process/2?api_key=Ur7hXZ8pVPs9vpScKv7w", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: base64Image
+            });
+            
+            const data = await res.json();
+            drawPredictions(data.predictions);
+            updatePredictionList(data.predictions);
+            updateHistory(data.predictions, captureTime);
+            speakDetections(data.predictions);
+            showAlerts(data.predictions);
+            
+            // Auto-download if we have a valid detection
+            const validClasses = ['freshripe', 'freshunripe', 'overripe', 'ripe', 'rotten', 'unripe'];
+            const validDetection = data.predictions.some(p => validClasses.includes(p.class));
+            
+            if (validDetection) {
+              setTimeout(() => downloadResults(data.predictions, captureTime), 1000);
+            }
+            
+          } catch (err) {
+            showToast("Detection failed: " + err.message, "danger");
+          }
+          
+          // Reset after processing
+          setTimeout(() => {
+            startCamera(currentCamera);
+            isProcessing = false;
+            setTimeout(() => cooldown = false, 2000); // 2-second cooldown
+          }, 2000);
+        };
+        
+        reader.readAsDataURL(blob);
+      }, "image/jpeg", 0.9);
+    }
+
+    // Download results
+    async function downloadResults(predictions, timestamp) {
+      if (!latestImageBlob) return;
+      
+      itemsProcessed++;
+      itemsCount.textContent = itemsProcessed;
+      
+      const timeStr = timestamp.toISOString().replace(/[:.]/g, '-');
+      const resultText = predictions.map(p => 
+        `${p.class.toUpperCase()}: ${(p.confidence * 100).toFixed(1)}% confidence`
+      ).join('\n');
+      
+      const zip = new JSZip();
+      zip.file(`banana-${timeStr}.jpg`, latestImageBlob);
+      zip.file(`detection-results-${timeStr}.txt`, resultText);
+      
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(zipBlob);
+      a.download = `banana-inspection-${timeStr}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+      
+      showToast("Results downloaded automatically", "success");
+    }
+
+    // Draw Predictions
     function drawPredictions(preds) {
       preds.forEach(pred => {
         const { x, y, width, height, class: label, confidence } = pred;
         ctx.strokeStyle = "#00FF00";
         ctx.lineWidth = 2;
         ctx.strokeRect(x - width / 2, y - height / 2, width, height);
+        
+        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+        ctx.fillRect(x - width / 2 - 2, y - height / 2 - 24, ctx.measureText(`${label} (${(confidence * 100).toFixed(1)}%)`).width + 10, 24);
+        
         ctx.fillStyle = "#00FF00";
         ctx.font = "16px Arial";
         ctx.fillText(`${label} (${(confidence * 100).toFixed(1)}%)`, x - width / 2, y - height / 2 - 8);
       });
     }
 
+    // Update UI
     function updatePredictionList(preds) {
       predictionList.innerHTML = '';
+      
+      if (preds.length === 0) {
+        const li = document.createElement("li");
+        li.className = "bg-industrial-light px-3 py-3 rounded text-center";
+        li.textContent = "NO BANANAS DETECTED";
+        predictionList.appendChild(li);
+        return;
+      }
+      
       preds.forEach(pred => {
         const li = document.createElement("li");
-        li.className = "bg-gray-700 px-3 py-1 rounded border-l-4 border-red-400 animate-slide-in-right";
-        li.textContent = `${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
+        li.className = "bg-industrial-light px-3 py-2 rounded border-l-4 flex justify-between items-center";
+        
+        // Set border color based on ripeness
+        if (pred.class.includes('rotten') || pred.class.includes('overripe')) {
+          li.classList.add("border-industrial-danger");
+        } else if (pred.class.includes('ripe') || pred.class.includes('freshripe')) {
+          li.classList.add("border-industrial-success");
+        } else {
+          li.classList.add("border-industrial-warning");
+        }
+        
+        const text = document.createElement("span");
+        text.textContent = `${pred.class.toUpperCase()}`;
+        
+        const confidence = document.createElement("span");
+        confidence.className = "font-mono bg-industrial-dark px-2 py-1 rounded";
+        confidence.textContent = `${(pred.confidence * 100).toFixed(1)}%`;
+        
+        li.appendChild(text);
+        li.appendChild(confidence);
         predictionList.appendChild(li);
       });
     }
 
-    function updateHistory(preds) {
-      const time = new Date().toLocaleTimeString();
+    function updateHistory(preds, timestamp) {
+      const time = timestamp.toLocaleTimeString();
+      
       preds.forEach(pred => {
         const li = document.createElement("li");
-        li.className = "bg-gray-700 px-3 py-1 rounded border-l-4 border-green-500";
-        li.textContent = `[${time}] ${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
+        li.className = "bg-industrial-light px-3 py-2 rounded flex justify-between items-center mb-2";
+        
+        const timeSpan = document.createElement("span");
+        timeSpan.className = "font-mono text-gray-400 text-xs";
+        timeSpan.textContent = time;
+        
+        const classSpan = document.createElement("span");
+        
+        // Set class color based on ripeness
+        if (pred.class.includes('rotten') || pred.class.includes('overripe')) {
+          classSpan.className = "text-industrial-danger";
+        } else if (pred.class.includes('ripe') || pred.class.includes('freshripe')) {
+          classSpan.className = "text-industrial-success";
+        } else {
+          classSpan.className = "text-industrial-warning";
+        }
+        
+        classSpan.textContent = pred.class.toUpperCase();
+        
+        const confSpan = document.createElement("span");
+        confSpan.className = "font-mono";
+        confSpan.textContent = `${(pred.confidence * 100).toFixed(1)}%`;
+        
+        li.appendChild(timeSpan);
+        li.appendChild(classSpan);
+        li.appendChild(confSpan);
         historyList.prepend(li);
+        
         if (historyList.children.length > 50) historyList.removeChild(historyList.lastChild);
       });
     }
 
     function speakDetections(preds) {
-      preds.forEach(pred => {
-        const msg = new SpeechSynthesisUtterance(`${pred.class} detected, ${(pred.confidence * 100).toFixed(0)} percent`);
-        msg.lang = "en-US";
-        speechSynthesis.speak(msg);
-      });
+      if (preds.length === 0) return;
+      
+      const msg = new SpeechSynthesisUtterance(
+        preds.length === 1 
+          ? `Detected ${preds[0].class} with ${(preds[0].confidence * 100).toFixed(0)} percent confidence` 
+          : `Detected ${preds.length} bananas`
+      );
+      msg.lang = "en-US";
+      speechSynthesis.speak(msg);
     }
 
     function showAlerts(preds) {
       preds.forEach(pred => {
-        const toast = document.createElement("div");
-        toast.className = "bg-blue-700 text-white px-4 py-2 rounded shadow-lg animate-slide-in-right";
-        toast.textContent = `🔔 ${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`;
-        toastContainer.appendChild(toast);
-        setTimeout(() => {
-          toast.classList.add("opacity-0");
-          setTimeout(() => toast.remove(), 500);
-        }, 3000);
+        let type = "info";
+        if (pred.class.includes('rotten') || pred.class.includes('overripe')) type = "danger";
+        if (pred.class.includes('ripe') || pred.class.includes('freshripe')) type = "success";
+        
+        showToast(`Detected: ${pred.class.toUpperCase()} (${(pred.confidence * 100).toFixed(1)}%)`, type);
       });
     }
-
-    async function downloadResults(preds) {
-      const historyText = preds.map(pred =>
-        `${pred.class.toUpperCase()} - ${(pred.confidence * 100).toFixed(1)}%`
-      ).join("\n");
-
-      const zip = new JSZip();
-      zip.file("detection-result.txt", historyText);
-      zip.file("captured-image.jpg", latestImageBlob);
-
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(zipBlob);
-      a.download = `detection-${Date.now()}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
+    
+    function showToast(message, type = "info") {
+      const toast = document.createElement("div");
+      toast.className = `bg-industrial-${type} text-white px-4 py-2 rounded shadow-lg animate-slide-in-right flex items-center`;
+      
+      let icon = "fas fa-info-circle";
+      if (type === "success") icon = "fas fa-check-circle";
+      if (type === "danger") icon = "fas fa-exclamation-triangle";
+      if (type === "warning") icon = "fas fa-exclamation-circle";
+      
+      toast.innerHTML = `
+        <i class="${icon} mr-2"></i>
+        <span>${message}</span>
+      `;
+      
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add("opacity-0");
+        setTimeout(() => toast.remove(), 500);
+      }, 3000);
     }
+
+    // Reset
+    resetBtn.addEventListener("click", () => {
+      predictionList.innerHTML = '<li class="bg-industrial-light px-3 py-3 rounded text-center">NO DATA</li>';
+      historyList.innerHTML = '';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      latestImageBlob = null;
+      itemsProcessed = 0;
+      itemsCount.textContent = itemsProcessed;
+      lastScan.textContent = "--:--:--";
+      showToast("System has been reset", "warning");
+    });
 
     // Start camera on load
     startCamera(currentCamera);
+
   </script>
 </body>
 </html>
