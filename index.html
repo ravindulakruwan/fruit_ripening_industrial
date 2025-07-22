@@ -2,247 +2,200 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Industrial Banana Inspector</title>
+  <title>Industrial Banana Scanner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @keyframes slide-in-right {
       from { transform: translateX(100%); opacity: 0; }
       to   { transform: translateX(0);   opacity: 1; }
     }
+    
+    @keyframes conveyor {
+      from { background-position: 0 0; }
+      to { background-position: 40px 0; }
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    
+    @keyframes scanner-beam {
+      0% { top: 0; opacity: 0.8; }
+      100% { top: 100%; opacity: 0; }
+    }
+    
     .animate-slide-in-right {
       animation: slide-in-right 0.4s ease-out;
     }
     
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(0, 255, 0, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 255, 0, 0); }
+    .conveyor-belt {
+      background-image: linear-gradient(45deg, #555 25%, transparent 25%, 
+                        transparent 50%, #555 50%, #555 75%, transparent 75%, transparent);
+      background-size: 40px 40px;
+      animation: conveyor 1s linear infinite;
     }
     
-    @keyframes conveyor {
-      0% { background-position: 0 0; }
-      100% { background-position: 50px 0; }
-    }
-    
-    @keyframes scanner {
-      0% { transform: translateY(-100%); }
-      100% { transform: translateY(100%); }
-    }
-    
-    .pulse-active {
+    .status-pulse {
       animation: pulse 2s infinite;
     }
     
-    .conveyor-bg {
-      background-image: linear-gradient(90deg, #2d3748 0px, #2d3748 25px, #4a5568 25px, #4a5568 50px);
-      background-size: 50px 100%;
-      animation: conveyor 2s linear infinite;
-    }
-    
-    .scanner-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(to bottom, rgba(0, 255, 0, 0) 0%, rgba(0, 255, 0, 0.1) 50%, rgba(0, 255, 0, 0) 100%);
-      animation: scanner 1.5s linear infinite;
-    }
-    
-    .industrial-border {
-      border: 2px solid #4a5568;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.5);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .industrial-border::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #e53e3e, #dd6b20, #38a169, #319795, #00b5d8, #3182ce, #805ad5);
-    }
-    
-    .status-indicator {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-    
-    .status-active {
-      box-shadow: 0 0 10px #38a169;
-      background-color: #38a169;
-    }
-    
-    .status-inactive {
-      background-color: #e53e3e;
+    .scanner-beam {
+      animation: scanner-beam 1.5s ease-in-out infinite;
     }
   </style>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            industrial: {
-              dark: '#1a202c',
-              medium: '#2d3748',
-              light: '#4a5568',
-              accent: '#dd6b20',
-              success: '#38a169',
-              warning: '#dd6b20',
-              danger: '#e53e3e',
-              info: '#3182ce'
-            }
-          }
-        }
-      }
-    }
-  </script>
 </head>
-<body class="bg-industrial-dark text-gray-200 min-h-screen p-4">
+<body class="bg-gray-900 text-white min-h-screen p-4">
 
   <!-- Toasts -->
   <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
   <header class="text-center mb-8">
-    <div class="industrial-border rounded-lg p-4 bg-gradient-to-r from-industrial-medium to-industrial-light">
-      <h1 class="text-3xl font-bold text-orange-400 flex items-center justify-center">
-        <i class="fas fa-industry mr-3"></i>
-        INDUSTRIAL BANANA RIPENESS INSPECTOR
-      </h1>
-      <p class="text-gray-400 mt-2 text-sm flex items-center justify-center">
-        <span class="status-indicator status-active"></span>
-        <span>Automatic Detection System - TP53 Group</span>
-      </p>
+    <div class="flex items-center justify-center mb-2">
+      <div class="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-yellow-400">Industrial Banana Ripeness Scanner</h1>
     </div>
+    <p class="text-gray-400 text-sm">Automated detection system - TP53 Group</p>
   </header>
 
-  <main class="flex flex-col lg:flex-row gap-6 max-w-7xl mx-auto items-start">
+  <main class="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto items-start">
 
     <!-- Camera Section -->
-    <div class="w-full max-w-[640px] space-y-4">
-      <div class="industrial-border rounded-lg overflow-hidden">
-        <div class="relative aspect-video bg-black rounded-lg overflow-hidden w-full conveyor-bg">
-          <video id="video" autoplay playsinline class="absolute w-full h-full object-cover"></video>
-          <canvas id="canvas" class="absolute w-full h-full hidden"></canvas>
-          <div id="scanner" class="scanner-overlay hidden"></div>
-          <div id="red-detection-overlay" class="absolute inset-0 bg-red-500 bg-opacity-20 hidden"></div>
-        </div>
-        <div class="bg-industrial-medium p-2 flex items-center">
-          <span class="status-indicator status-active mr-2"></span>
-          <span id="status-text" class="text-sm font-mono">SYSTEM READY</span>
+    <div class="w-full max-w-[640px] space-y-6">
+      <div class="relative aspect-video rounded-xl overflow-hidden w-full border-4 border-gray-700">
+        <div class="absolute inset-0 conveyor-belt z-0"></div>
+        <video id="video" autoplay playsinline class="absolute w-full h-full object-cover z-10"></video>
+        <canvas id="canvas" class="absolute w-full h-full hidden z-20"></canvas>
+        <div class="absolute inset-0 z-30 pointer-events-none">
+          <div class="absolute left-1/2 transform -translate-x-1/2 w-3/4 h-1 bg-red-500 rounded-full scanner-beam"></div>
         </div>
       </div>
       
-      <div class="flex flex-wrap gap-3">
-        <button id="switch-camera-btn" class="bg-industrial-light hover:bg-industrial-accent text-white px-4 py-2 rounded w-full sm:w-auto transition-all">
-          <i class="fas fa-camera-retro mr-2"></i>SWITCH CAMERA
+      <div class="flex justify-between items-center">
+        <button id="switch-camera-btn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg flex items-center transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+          </svg>
+          Switch Camera
         </button>
-        <button id="reset-btn" class="bg-industrial-danger hover:bg-red-700 text-white py-2 px-4 rounded w-full transition-all">
-          <i class="fas fa-redo mr-2"></i>RESET SYSTEM
-        </button>
+        
+        <div class="flex items-center">
+          <div id="status-led" class="w-3 h-3 rounded-full bg-red-500 mr-2 status-pulse"></div>
+          <span id="status-text" class="text-sm text-gray-300">Scanning for red objects...</span>
+        </div>
       </div>
     </div>
 
     <!-- Sidebar -->
-    <div class="w-full lg:w-[380px] space-y-6">
+    <div class="w-full lg:w-[340px] space-y-6">
 
       <!-- System Status -->
-      <section class="industrial-border rounded-lg overflow-hidden">
-        <div class="bg-industrial-accent p-3 flex items-center">
-          <i class="fas fa-microchip mr-2"></i>
-          <h2 class="text-xl font-semibold">SYSTEM STATUS</h2>
-        </div>
-        <div class="bg-industrial-medium p-4">
-          <ul class="space-y-3 text-sm">
-            <li class="flex justify-between">
-              <span>Detection Mode:</span>
-              <span class="font-mono text-green-400">AUTO-RED DETECT</span>
-            </li>
-            <li class="flex justify-between">
-              <span>Camera:</span>
-              <span id="camera-type" class="font-mono">Rear (Environment)</span>
-            </li>
-            <li class="flex justify-between">
-              <span>Last Scan:</span>
-              <span id="last-scan" class="font-mono">--:--:--</span>
-            </li>
-            <li class="flex justify-between">
-              <span>Items Processed:</span>
-              <span id="items-count" class="font-mono">0</span>
-            </li>
-          </ul>
+      <section class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+        <h2 class="text-xl font-semibold text-yellow-400 mb-3 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          System Status
+        </h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-gray-900 p-3 rounded-lg">
+            <p class="text-gray-400 text-xs">Detection Mode</p>
+            <p class="font-medium text-yellow-400">Auto-Red Trigger</p>
+          </div>
+          <div class="bg-gray-900 p-3 rounded-lg">
+            <p class="text-gray-400 text-xs">Sensitivity</p>
+            <p class="font-medium text-yellow-400">High</p>
+          </div>
+          <div class="bg-gray-900 p-3 rounded-lg">
+            <p class="text-gray-400 text-xs">Last Detection</p>
+            <p id="last-detect-time" class="font-medium text-yellow-400">--:--:--</p>
+          </div>
+          <div class="bg-gray-900 p-3 rounded-lg">
+            <p class="text-gray-400 text-xs">Items Processed</p>
+            <p id="items-processed" class="font-medium text-yellow-400">0</p>
+          </div>
         </div>
       </section>
 
       <!-- Predictions -->
-      <section class="industrial-border rounded-lg overflow-hidden">
-        <div class="bg-industrial-info p-3 flex items-center">
-          <i class="fas fa-brain mr-2"></i>
-          <h2 class="text-xl font-semibold">DETECTION RESULTS</h2>
-        </div>
-        <div class="bg-industrial-medium p-4">
-          <ul id="prediction-list" class="space-y-2 text-sm"></ul>
-        </div>
+      <section class="bg-gray-800 p-4 rounded-xl border border-gray-700">
+        <h2 class="text-xl font-semibold text-yellow-400 mb-3 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Ripeness Analysis
+        </h2>
+        <ul id="prediction-list" class="space-y-2 text-sm"></ul>
       </section>
 
       <!-- History -->
-      <section class="industrial-border rounded-lg overflow-hidden">
-        <div class="bg-industrial-success p-3 flex items-center">
-          <i class="fas fa-history mr-2"></i>
-          <h2 class="text-xl font-semibold">PRODUCTION HISTORY</h2>
-        </div>
-        <div class="bg-industrial-medium p-4 max-h-[250px] overflow-y-auto">
-          <ul id="history-list" class="space-y-2 text-xs"></ul>
-        </div>
+      <section class="bg-gray-800 p-4 rounded-xl border border-gray-700 max-h-[250px] overflow-y-auto">
+        <h2 class="text-xl font-semibold text-yellow-400 mb-3 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Detection Log
+        </h2>
+        <ul id="history-list" class="space-y-2 text-xs"></ul>
       </section>
+
+      <!-- Controls -->
+      <div class="flex gap-3">
+        <button id="reset-btn" class="bg-gray-700 hover:bg-gray-600 text-white py-3 px-4 rounded-lg flex-1 flex items-center justify-center transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Reset System
+        </button>
+      </div>
     </div>
   </main>
-
-  <footer class="mt-8 text-center text-gray-500 text-sm">
-    <p>Industrial Automation System - TP53 Group | Version 2.1</p>
-  </footer>
 
   <script>
     let currentCamera = 'environment';
     let stream = null;
     let track = null;
+    let torchOn = false;
+    let isProcessing = false;
     let itemsProcessed = 0;
 
     let latestImageBlob = null;
-    let isProcessing = false;
-    let cooldown = false;
+    let redDetectionInterval = null;
 
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
-    const scanner = document.getElementById("scanner");
-    const redOverlay = document.getElementById("red-detection-overlay");
-    const statusText = document.getElementById("status-text");
-    const cameraType = document.getElementById("camera-type");
-    const lastScan = document.getElementById("last-scan");
-    const itemsCount = document.getElementById("items-count");
 
     const switchBtn = document.getElementById("switch-camera-btn");
     const toastContainer = document.getElementById("toast-container");
+
     const predictionList = document.getElementById("prediction-list");
     const historyList = document.getElementById("history-list");
     const resetBtn = document.getElementById("reset-btn");
+    const statusLed = document.getElementById("status-led");
+    const statusText = document.getElementById("status-text");
+    const lastDetectTime = document.getElementById("last-detect-time");
+    const itemsProcessedEl = document.getElementById("items-processed");
+
+    const validClasses = ['freshripe', 'freshunripe', 'overripe', 'ripe', 'rotten', 'unripe'];
+
+    // Update status UI
+    function updateStatus(text, color) {
+      statusText.textContent = text;
+      statusLed.className = `w-3 h-3 rounded-full ${color} status-pulse`;
+    }
 
     // Start Camera
     async function startCamera(facingMode = 'environment') {
       if (stream) stream.getTracks().forEach(t => t.stop());
-      
-      statusText.textContent = "INITIALIZING CAMERA...";
-      cameraType.textContent = facingMode === 'environment' ? "Rear (Environment)" : "Front (User)";
+      torchOn = false;
 
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -255,14 +208,14 @@
 
         canvas.classList.add("hidden");
         video.classList.remove("hidden");
-        scanner.classList.add("hidden");
-        statusText.textContent = "READY - AWAITING RED OBJECT";
 
-        // Start red detection
-        setTimeout(detectRedPresence, 500);
+        // Start red detection scanning
+        startRedDetection();
+        updateStatus("Scanning for red objects...", "bg-red-500");
+
       } catch (err) {
-        statusText.textContent = "CAMERA ERROR";
-        showToast(`Camera error: ${err.message}`, "danger");
+        showToast("Camera error: " + err.message, "red");
+        updateStatus("Camera error", "bg-red-500");
       }
     }
 
@@ -272,65 +225,51 @@
       startCamera(currentCamera);
     });
 
-    // Detect red presence
-    function detectRedPresence() {
-      if (isProcessing || cooldown || !video.videoWidth || !video.videoHeight) {
-        setTimeout(detectRedPresence, 200);
-        return;
-      }
-
-      // Create offscreen canvas for analysis
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = video.videoWidth;
-      tempCanvas.height = video.videoHeight;
+    // Start red color detection
+    function startRedDetection() {
+      if (redDetectionInterval) clearInterval(redDetectionInterval);
       
-      tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
-      
-      let redPixels = 0;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+      redDetectionInterval = setInterval(() => {
+        if (isProcessing) return;
         
-        // Detect red (high R, low G, low B)
-        if (r > 150 && g < 100 && b < 100) {
-          redPixels++;
-        }
-      }
-      
-      const redPercentage = (redPixels / (tempCanvas.width * tempCanvas.height)) * 100;
-      
-      if (redPercentage > 5) { // Minimum 5% of the frame must be red
-        redOverlay.classList.remove("hidden");
-        statusText.textContent = `RED OBJECT DETECTED (${Math.round(redPercentage)}%)`;
+        // Create temporary canvas for detection
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
         
-        // Trigger capture after short delay
-        setTimeout(() => {
-          if (redPercentage > 5) {
-            triggerCapture();
+        const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imageData.data;
+        let redPixels = 0;
+        
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          
+          // High sensitivity red detection (prioritizes red over other colors)
+          if (r > 150 && r > g * 1.5 && r > b * 1.5) {
+            redPixels++;
           }
-        }, 300);
-      } else {
-        redOverlay.classList.add("hidden");
-        statusText.textContent = "READY - AWAITING RED OBJECT";
-      }
-      
-      setTimeout(detectRedPresence, 200);
+        }
+        
+        const redPercentage = redPixels / (tempCanvas.width * tempCanvas.height);
+        
+        // High sensitivity threshold (1% of screen)
+        if (redPercentage > 0.01) {
+          clearInterval(redDetectionInterval);
+          captureAndDetect();
+        }
+      }, 300); // Check every 300ms
     }
 
-    // Trigger capture
-    function triggerCapture() {
-      if (isProcessing || cooldown) return;
+    // Capture and Detect
+    async function captureAndDetect() {
+      if (!track || isProcessing) return;
       
       isProcessing = true;
-      cooldown = true;
-      redOverlay.classList.add("hidden");
-      scanner.classList.remove("hidden");
-      statusText.textContent = "PROCESSING...";
+      updateStatus("Processing detection...", "bg-yellow-500");
       
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -339,94 +278,62 @@
       canvas.classList.remove("hidden");
       video.classList.add("hidden");
       
-      const captureTime = new Date();
-      lastScan.textContent = captureTime.toLocaleTimeString();
+      const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg"));
+      latestImageBlob = blob;
       
-      // Get image data
-      canvas.toBlob(async (blob) => {
-        latestImageBlob = blob;
-        const reader = new FileReader();
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, '');
         
-        reader.onloadend = async () => {
-          const base64Image = reader.result.replace(/^data:image\/jpeg;base64,/, '');
+        try {
+          const res = await fetch("https://serverless.roboflow.com/fruit-ripening-process/2?api_key=Ur7hXZ8pVPs9vpScKv7w", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: base64Image
+          });
           
-          try {
-            const res = await fetch("https://serverless.roboflow.com/fruit-ripening-process/2?api_key=Ur7hXZ8pVPs9vpScKv7w", {
-              method: "POST",
-              headers: { "Content-Type": "application/x-www-form-urlencoded" },
-              body: base64Image
-            });
-            
-            const data = await res.json();
-            drawPredictions(data.predictions);
-            updatePredictionList(data.predictions);
-            updateHistory(data.predictions, captureTime);
-            speakDetections(data.predictions);
-            showAlerts(data.predictions);
-            
-            // Auto-download if we have a valid detection
-            const validClasses = ['freshripe', 'freshunripe', 'overripe', 'ripe', 'rotten', 'unripe'];
-            const validDetection = data.predictions.some(p => validClasses.includes(p.class));
-            
-            if (validDetection) {
-              setTimeout(() => downloadResults(data.predictions, captureTime), 1000);
-            }
-            
-          } catch (err) {
-            showToast("Detection failed: " + err.message, "danger");
+          const data = await res.json();
+          drawPredictions(data.predictions);
+          updatePredictionList(data.predictions);
+          
+          // Only update history and download if we have valid classes
+          const hasValidClass = data.predictions.some(pred => validClasses.includes(pred.class));
+          
+          if (hasValidClass) {
+            updateHistory(data.predictions);
+            downloadResults();
+            itemsProcessed++;
+            itemsProcessedEl.textContent = itemsProcessed;
+            lastDetectTime.textContent = new Date().toLocaleTimeString();
           }
           
-          // Reset after processing
-          setTimeout(() => {
-            startCamera(currentCamera);
-            isProcessing = false;
-            setTimeout(() => cooldown = false, 2000); // 2-second cooldown
-          }, 2000);
-        };
+          speakDetections(data.predictions);
+          showAlerts(data.predictions);
+          
+        } catch (err) {
+          showToast("Detection error: " + err.message, "red");
+        }
         
-        reader.readAsDataURL(blob);
-      }, "image/jpeg", 0.9);
-    }
-
-    // Download results
-    async function downloadResults(predictions, timestamp) {
-      if (!latestImageBlob) return;
+        // Restart camera and scanning
+        setTimeout(() => {
+          startCamera(currentCamera);
+          isProcessing = false;
+        }, 2000);
+      };
       
-      itemsProcessed++;
-      itemsCount.textContent = itemsProcessed;
-      
-      const timeStr = timestamp.toISOString().replace(/[:.]/g, '-');
-      const resultText = predictions.map(p => 
-        `${p.class.toUpperCase()}: ${(p.confidence * 100).toFixed(1)}% confidence`
-      ).join('\n');
-      
-      const zip = new JSZip();
-      zip.file(`banana-${timeStr}.jpg`, latestImageBlob);
-      zip.file(`detection-results-${timeStr}.txt`, resultText);
-      
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(zipBlob);
-      a.download = `banana-inspection-${timeStr}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-      
-      showToast("Results downloaded automatically", "success");
+      reader.readAsDataURL(blob);
     }
 
     // Draw Predictions
     function drawPredictions(preds) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0);
+      
       preds.forEach(pred => {
         const { x, y, width, height, class: label, confidence } = pred;
         ctx.strokeStyle = "#00FF00";
         ctx.lineWidth = 2;
         ctx.strokeRect(x - width / 2, y - height / 2, width, height);
-        
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(x - width / 2 - 2, y - height / 2 - 24, ctx.measureText(`${label} (${(confidence * 100).toFixed(1)}%)`).width + 10, 24);
-        
         ctx.fillStyle = "#00FF00";
         ctx.font = "16px Arial";
         ctx.fillText(`${label} (${(confidence * 100).toFixed(1)}%)`, x - width / 2, y - height / 2 - 8);
@@ -436,114 +343,88 @@
     // Update UI
     function updatePredictionList(preds) {
       predictionList.innerHTML = '';
-      
-      if (preds.length === 0) {
-        const li = document.createElement("li");
-        li.className = "bg-industrial-light px-3 py-3 rounded text-center";
-        li.textContent = "NO BANANAS DETECTED";
-        predictionList.appendChild(li);
-        return;
-      }
-      
       preds.forEach(pred => {
         const li = document.createElement("li");
-        li.className = "bg-industrial-light px-3 py-2 rounded border-l-4 flex justify-between items-center";
+        li.className = "bg-gray-900 px-3 py-2 rounded-lg flex items-center border-l-4 border-yellow-500";
         
-        // Set border color based on ripeness
-        if (pred.class.includes('rotten') || pred.class.includes('overripe')) {
-          li.classList.add("border-industrial-danger");
-        } else if (pred.class.includes('ripe') || pred.class.includes('freshripe')) {
-          li.classList.add("border-industrial-success");
-        } else {
-          li.classList.add("border-industrial-warning");
-        }
+        // Color coding based on ripeness
+        let colorClass = "text-gray-300";
+        if (pred.class.includes("ripe")) colorClass = "text-yellow-500";
+        if (pred.class.includes("rotten")) colorClass = "text-red-500";
+        if (pred.class.includes("unripe")) colorClass = "text-green-500";
         
-        const text = document.createElement("span");
-        text.textContent = `${pred.class.toUpperCase()}`;
-        
-        const confidence = document.createElement("span");
-        confidence.className = "font-mono bg-industrial-dark px-2 py-1 rounded";
-        confidence.textContent = `${(pred.confidence * 100).toFixed(1)}%`;
-        
-        li.appendChild(text);
-        li.appendChild(confidence);
+        li.innerHTML = `
+          <div class="flex-1">
+            <span class="font-medium ${colorClass}">${pred.class.toUpperCase()}</span>
+            <div class="w-full bg-gray-700 h-1.5 rounded-full mt-1">
+              <div class="bg-yellow-500 h-1.5 rounded-full" style="width: ${pred.confidence * 100}%"></div>
+            </div>
+          </div>
+          <span class="text-gray-400 text-xs">${(pred.confidence * 100).toFixed(1)}%</span>
+        `;
         predictionList.appendChild(li);
       });
     }
 
-    function updateHistory(preds, timestamp) {
-      const time = timestamp.toLocaleTimeString();
+    function updateHistory(preds) {
+      const time = new Date().toLocaleTimeString();
       
-      preds.forEach(pred => {
+      // Only add valid classes to history
+      const validPreds = preds.filter(pred => validClasses.includes(pred.class));
+      
+      validPreds.forEach(pred => {
         const li = document.createElement("li");
-        li.className = "bg-industrial-light px-3 py-2 rounded flex justify-between items-center mb-2";
+        li.className = "bg-gray-900 px-3 py-2 rounded-lg flex items-center";
         
-        const timeSpan = document.createElement("span");
-        timeSpan.className = "font-mono text-gray-400 text-xs";
-        timeSpan.textContent = time;
+        let statusColor = "bg-yellow-500";
+        if (pred.class.includes("rotten")) statusColor = "bg-red-500";
+        if (pred.class.includes("unripe")) statusColor = "bg-green-500";
         
-        const classSpan = document.createElement("span");
-        
-        // Set class color based on ripeness
-        if (pred.class.includes('rotten') || pred.class.includes('overripe')) {
-          classSpan.className = "text-industrial-danger";
-        } else if (pred.class.includes('ripe') || pred.class.includes('freshripe')) {
-          classSpan.className = "text-industrial-success";
-        } else {
-          classSpan.className = "text-industrial-warning";
-        }
-        
-        classSpan.textContent = pred.class.toUpperCase();
-        
-        const confSpan = document.createElement("span");
-        confSpan.className = "font-mono";
-        confSpan.textContent = `${(pred.confidence * 100).toFixed(1)}%`;
-        
-        li.appendChild(timeSpan);
-        li.appendChild(classSpan);
-        li.appendChild(confSpan);
+        li.innerHTML = `
+          <div class="${statusColor} w-2 h-2 rounded-full mr-2"></div>
+          <span class="font-medium">${pred.class.toUpperCase()}</span>
+          <span class="text-gray-400 ml-auto text-xs">${time}</span>
+        `;
         historyList.prepend(li);
-        
         if (historyList.children.length > 50) historyList.removeChild(historyList.lastChild);
       });
     }
 
     function speakDetections(preds) {
-      if (preds.length === 0) return;
-      
-      const msg = new SpeechSynthesisUtterance(
-        preds.length === 1 
-          ? `Detected ${preds[0].class} with ${(preds[0].confidence * 100).toFixed(0)} percent confidence` 
-          : `Detected ${preds.length} bananas`
-      );
-      msg.lang = "en-US";
-      speechSynthesis.speak(msg);
+      preds.forEach(pred => {
+        const msg = new SpeechSynthesisUtterance(`${pred.class} detected, ${(pred.confidence * 100).toFixed(0)} percent`);
+        msg.lang = "en-US";
+        speechSynthesis.speak(msg);
+      });
     }
 
     function showAlerts(preds) {
       preds.forEach(pred => {
-        let type = "info";
-        if (pred.class.includes('rotten') || pred.class.includes('overripe')) type = "danger";
-        if (pred.class.includes('ripe') || pred.class.includes('freshripe')) type = "success";
+        const toast = document.createElement("div");
+        toast.className = "bg-gray-800 text-white px-4 py-3 rounded-lg shadow-lg animate-slide-in-right flex items-center border-l-4 border-yellow-500";
         
-        showToast(`Detected: ${pred.class.toUpperCase()} (${(pred.confidence * 100).toFixed(1)}%)`, type);
+        let statusColor = "text-yellow-500";
+        if (pred.class.includes("rotten")) statusColor = "text-red-500";
+        if (pred.class.includes("unripe")) statusColor = "text-green-500";
+        
+        toast.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ${statusColor} mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>${pred.class.toUpperCase()} detected - ${(pred.confidence * 100).toFixed(1)}%</span>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => {
+          toast.classList.add("opacity-0");
+          setTimeout(() => toast.remove(), 500);
+        }, 3000);
       });
     }
     
-    function showToast(message, type = "info") {
+    function showToast(message, color = "blue") {
       const toast = document.createElement("div");
-      toast.className = `bg-industrial-${type} text-white px-4 py-2 rounded shadow-lg animate-slide-in-right flex items-center`;
-      
-      let icon = "fas fa-info-circle";
-      if (type === "success") icon = "fas fa-check-circle";
-      if (type === "danger") icon = "fas fa-exclamation-triangle";
-      if (type === "warning") icon = "fas fa-exclamation-circle";
-      
-      toast.innerHTML = `
-        <i class="${icon} mr-2"></i>
-        <span>${message}</span>
-      `;
-      
+      toast.className = `bg-${color}-900 text-white px-4 py-3 rounded-lg shadow-lg animate-slide-in-right`;
+      toast.textContent = message;
       toastContainer.appendChild(toast);
       setTimeout(() => {
         toast.classList.add("opacity-0");
@@ -551,16 +432,42 @@
       }, 3000);
     }
 
+    // Download results automatically when valid class detected
+    async function downloadResults() {
+      if (!latestImageBlob) return;
+      
+      const historyText = [...historyList.children].map(li => li.textContent).join("\n");
+      
+      const zip = new JSZip();
+      zip.file("detection-history.txt", historyText);
+      zip.file("captured-image.jpg", latestImageBlob);
+      
+      try {
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = `banana-scan-${Date.now()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        
+        showToast("Results downloaded successfully", "green");
+      } catch (err) {
+        showToast("Download error: " + err.message, "red");
+      }
+    }
+
     // Reset
     resetBtn.addEventListener("click", () => {
-      predictionList.innerHTML = '<li class="bg-industrial-light px-3 py-3 rounded text-center">NO DATA</li>';
+      predictionList.innerHTML = '';
       historyList.innerHTML = '';
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       latestImageBlob = null;
       itemsProcessed = 0;
-      itemsCount.textContent = itemsProcessed;
-      lastScan.textContent = "--:--:--";
-      showToast("System has been reset", "warning");
+      itemsProcessedEl.textContent = itemsProcessed;
+      lastDetectTime.textContent = "--:--:--";
+      showToast("System has been reset", "blue");
     });
 
     // Start camera on load
